@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DNA Strand Translator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#eef3f7;--surface:#ffffff;--ink:#14243a;--muted:#5a6b80;--line:#cfdae5;--accent:#14243a;--accent-ink:#ffffff;
+  --A:#f2a900;--T:#2e86ab;--G:#3bb273;--C:#c8417e;--U:#6a5acd;--onbase:#14243a;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1b2b;--surface:#172740;--ink:#e6eef7;--muted:#93a6bc;--line:#2c4160;--accent:#e6eef7;--accent-ink:#0f1b2b;
+  --A:#e6a817;--T:#4aa3c7;--G:#4fc088;--C:#d6639a;--U:#8e80e0;--onbase:#0f1b2b;}}
+:root[data-theme="dark"]{
+  --bg:#0f1b2b;--surface:#172740;--ink:#e6eef7;--muted:#93a6bc;--line:#2c4160;--accent:#e6eef7;--accent-ink:#0f1b2b;
+  --A:#e6a817;--T:#4aa3c7;--G:#4fc088;--C:#d6639a;--U:#8e80e0;--onbase:#0f1b2b;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Space Grotesk",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:clamp(1.9rem,5vw,2.8rem);line-height:1.1;margin:0 0 6px;letter-spacing:-.02em}
+.lede{color:var(--muted);margin:0 0 22px;max-width:60ch}
+label{font-weight:500;display:block;margin-bottom:6px}
+textarea{width:100%;min-height:110px;resize:vertical;padding:12px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:500 15px/1.5 "JetBrains Mono",ui-monospace,monospace;letter-spacing:.06em}
+textarea:focus-visible,button:focus-visible{outline:3px solid var(--T);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 0}
+button{font:500 14px "Space Grotesk",sans-serif;padding:8px 14px;border-radius:8px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+.note{color:var(--muted);font-size:.9rem;min-height:1.4em}
+.stats{display:flex;gap:22px;flex-wrap:wrap;margin:22px 0 10px;font-size:.95rem}
+.stats b{font-size:1.3rem;display:block;line-height:1.2}
+.pair{background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;margin-bottom:22px}
+.blk{margin-bottom:14px;min-width:max-content}
+.blk:last-child{margin-bottom:0}
+.line{display:flex;align-items:center;gap:8px}
+.tag{width:26px;font:600 12px "JetBrains Mono",monospace;color:var(--muted);flex:none}
+.cells{display:flex}
+.c{width:20px;height:24px;display:grid;place-items:center;font:600 13px "JetBrains Mono",monospace;color:var(--onbase)}
+.c.A{background:var(--A)}.c.T{background:var(--T)}.c.G{background:var(--G)}.c.C{background:var(--C)}.c.U{background:var(--U)}.c.N{background:var(--line)}
+.bond{height:10px;display:flex;margin-left:34px}
+.bond i{width:20px;display:block;position:relative}
+.bond i::after{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:2px solid var(--line)}
+.out{background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.out header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px}
+.out h2{font-size:1.05rem;margin:0}
+.out p{margin:2px 0 0;color:var(--muted);font-size:.88rem}
+.seq{font:500 14px/1.6 "JetBrains Mono",monospace;letter-spacing:.08em;word-break:break-all;margin:0;white-space:pre-wrap}
+.seq .A{color:var(--A)}.seq .T{color:var(--T)}.seq .G{color:var(--G)}.seq .C{color:var(--C)}.seq .U{color:var(--U)}
+.empty{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>DNA strand translator</h1>
+  <p class="lede">Paste a DNA sequence written 5′ to 3′. Get its complement, reverse complement, and the RNA it makes in transcription.</p>
+
+  <label for="in">DNA sequence</label>
+  <textarea id="in" spellcheck="false" autocomplete="off" placeholder="ATGGCCATTGTAATGGGCCGC"></textarea>
+  <div class="row">
+    <button class="primary" id="ex">Try an example</button>
+    <button id="clr">Clear</button>
+  </div>
+  <div class="note" id="note" aria-live="polite"></div>
+
+  <div class="stats" id="stats"></div>
+  <div id="pair"></div>
+  <div id="outs"></div>
+</main>
+
+<script>
+(function(){
+  var COMP={A:"T",T:"A",G:"C",C:"G",N:"N"};
+  var inp=document.getElementById("in"),note=document.getElementById("note");
+  var statsEl=document.getElementById("stats"),pairEl=document.getElementById("pair"),outsEl=document.getElementById("outs");
+
+  function clean(raw){
+    var t=raw.replace(/^>.*$/gm,"").toUpperCase().replace(/\s+|\d+/g,"");
+    var seq="",bad={};
+    for(var i=0;i<t.length;i++){
+      var ch=t[i];
+      if(ch==="U"){ch="T";}
+      if(COMP[ch]){seq+=ch;}else{bad[ch]=1;}
+    }
+    return {seq:seq,bad:Object.keys(bad)};
+  }
+  function comp(s){return s.split("").map(function(c){return COMP[c];}).join("");}
+  function rev(s){return s.split("").reverse().join("");}
+  function toRNA(s){return s.replace(/T/g,"U");}
+  function colored(s){return s.split("").map(function(c){return '<span class="'+c+'">'+c+'</span>';}).join("");}
+  function cells(s){return s.split("").map(function(c){return '<span class="c '+c+'">'+c+'</span>';}).join("");}
+
+  function card(id,title,desc,seq){
+    return '<section class="out"><header><div><h2>'+title+'</h2><p>'+desc+'</p></div>'+
+      '<button data-copy="'+seq+'" aria-label="Copy '+title+'">Copy</button></header>'+
+      '<p class="seq">'+colored(seq)+'</p></section>';
+  }
+
+  function render(){
+    var r=clean(inp.value),s=r.seq;
+    note.textContent=r.bad.length?("Ignored characters: "+r.bad.join(" ")+". Only A, C, G, T, U and N are used."):"";
+    if(!s){
+      statsEl.innerHTML="";pairEl.innerHTML="";
+      outsEl.innerHTML='<p class="empty">Results appear here as you type.</p>';
+      return;
+    }
+    var gc=(s.match(/[GC]/g)||[]).length,real=s.replace(/N/g,"").length;
+    statsEl.innerHTML='<div><b>'+s.length+'</b>bases</div><div><b>'+(real?(gc/real*100).toFixed(1):"0.0")+'%</b>GC content</div>';
+
+    var SHOW=120,view=s.slice(0,SHOW),cp=comp(view),html='<div class="pair">';
+    for(var i=0;i<view.length;i+=30){
+      var a=view.slice(i,i+30),b=cp.slice(i,i+30);
+      html+='<div class="blk"><div class="line"><span class="tag">5′</span><div class="cells">'+cells(a)+'</div><span class="tag">3′</span></div>'+
+        '<div class="bond">'+a.split("").map(function(){return "<i></i>";}).join("")+'</div>'+
+        '<div class="line"><span class="tag">3′</span><div class="cells">'+cells(b)+'</div><span class="tag">5′</span></div></div>';
+    }
+    if(s.length>SHOW)html+='<p class="note">Showing the first '+SHOW+' bases of '+s.length+'.</p>';
+    pairEl.innerHTML=html+'</div>';
+
+    var rc=rev(comp(s));
+    outsEl.innerHTML=
+      card("rc","Reverse complement","The opposite strand, read 5′ to 3′.",rc)+
+      card("mrna","RNA (coding strand)","Your sequence with T swapped for U. This is the mRNA when your input is the coding strand.",toRNA(s))+
+      card("tmpl","RNA from template strand","The RNA made if your input is the template strand, read 5′ to 3′.",toRNA(rc))+
+      card("c","Complement","Each base paired with its partner, shown 3′ to 5′ under your strand.",comp(s))+
+      card("r","Reverse","Your sequence read backwards.",rev(s));
+  }
+
+  function copy(text,btn){
+    function done(){var o=btn.textContent;btn.textContent="Copied";setTimeout(function(){btn.textContent=o;},1200);}
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fallback);return;}
+    }catch(e){}
+    fallback();
+    function fallback(){
+      try{
+        var t=document.createElement("textarea");t.value=text;document.body.appendChild(t);t.select();
+        document.execCommand("copy");document.body.removeChild(t);done();
+      }catch(e){btn.textContent="Copy failed";}
+    }
+  }
+
+  outsEl.addEventListener("click",function(e){
+    var b=e.target.closest("button[data-copy]");
+    if(b)copy(b.getAttribute("data-copy"),b);
+  });
+  inp.addEventListener("input",render);
+  document.getElementById("ex").addEventListener("click",function(){inp.value="ATGGCCATTGTAATGGGCCGCTGAAAGGGTGCCCGATAG";render();});
+  document.getElementById("clr").addEventListener("click",function(){inp.value="";render();inp.focus();});
+  render();
+})();
+</script>
+</body>
+</html>
